@@ -176,8 +176,6 @@ import java.util.*;
 import static mods.eln.i18n.I18N.*;
 
 @Mod(modid = Eln.MODID, name = Eln.NAME, version = Version.REVISION)
-// @Mod(modid = "Eln", name = "Electrical Age", version = "BETA-1.2.0b")
-// @NetworkMod(clientSideRequired = true, serverSideRequired = true, channels = { "miaouMod" }, packetHandler = PacketHandler.class)
 public class Eln {
 	// Mod information (override from 'mcmod.info' file)
 	public final static String MODID = "Eln";
@@ -191,11 +189,6 @@ public class Eln {
 	public static final String channelName = "miaouMod";
 	public ArrayList<IConfigSharing> configShared = new ArrayList<IConfigSharing>();
 	public static SimpleNetworkWrapper achNetwork;
-
-	// public static final double networkSerializeValueFactor = 100.0;
-	// public static final byte packetNodeSerialized24bitPosition = 11;
-	// public static final byte packetNodeSerialized48bitPosition = 12;
-	// public static final byte packetNodeRefreshRequest = 13;
 
 	public static final byte packetPlayerKey = 14;
 	public static final byte packetNodeSingleSerialized = 15;
@@ -268,6 +261,7 @@ public class Eln {
 	public static String dicTungstenOre, dicTungstenDust, dicTungstenIngot;
 	public static final ArrayList<OreScannerConfigElement> oreScannerConfig = new ArrayList<OreScannerConfigElement>();
 	public static boolean modbusEnable = false;
+	public static int modbusPort;
 
 	float xRayScannerRange;
 	boolean addOtherModOreToXRay;
@@ -304,7 +298,6 @@ public class Eln {
 		achNetwork.registerMessage(AchievePacketHandler.class, AchievePacket.class, 0, Side.SERVER);
 		
 		ModContainer container = FMLCommonHandler.instance().findContainerFor(this);
-		// LanguageRegistry.instance().loadLanguagesFor(container, Side.CLIENT);
 
 		// Update ModInfo by code
 		ModMetadata meta = event.getModMetadata();
@@ -323,7 +316,6 @@ public class Eln {
 		symboleList.add(new ConstSymbole("A", 0.1));
 		symboleList.add(new ConstSymbole("B", 0.2));
 		symboleList.add(new ConstSymbole("C", 0.3));
-		double value = 0.0;
 
 		Side side = FMLCommonHandler.instance().getEffectiveSide();
 		if (side == Side.CLIENT)
@@ -349,6 +341,7 @@ public class Eln {
 
 
 		modbusEnable = config.get("modbus", "enable", false).getBoolean(false);
+		modbusPort = config.get("modbus", "port", 1502).getInt(1502);
 		debugEnabled = config.get("debug", "enable", false).getBoolean(false);
 
 		explosionEnable = config.get("gameplay", "explosion", true).getBoolean(true);
@@ -376,7 +369,6 @@ public class Eln {
 		Other.ElnToIc2ConversionRatio = config.get("balancing", "ElnToIndustrialCraftConversionRatio", 1.0 / 3.0).getDouble(1.0 / 3.0);
 		Other.ElnToOcConversionRatio = config.get("balancing", "ElnToOpenComputerConversionRatio", 1.0 / 3.0 / 2.5).getDouble(1.0 / 3.0 / 2.5);
 		Other.ElnToTeConversionRatio = config.get("balancing", "ElnToThermalExpansionConversionRatio", 1.0 / 3.0 * 4).getDouble(1.0 / 3.0 * 4);
-	//	Other.ElnToBuildcraftConversionRatio = config.get("balancing", "ElnToBuildcraftConversionRatio", 1.0 / 3.0 / 5 * 2).getDouble(1.0 / 3.0 / 5 * 2);
 
 		stdHalfLife = config.get("battery", "batteryHalfLife", 2, "How many days it takes for a battery to decay half way").getDouble(2) * Utils.minecraftDay;
 		
@@ -430,11 +422,6 @@ public class Eln {
 		config.save();
 
 
-		Object o;
-
-		//computerCraftReady = Utils.isClassLoaded("dan200.computercraft.ComputerCraft");
-
-
 		eventChannel = NetworkRegistry.INSTANCE.newEventDrivenChannel(channelName);
 
 		simulator = new Simulator(0.05, 1 / electricalFrequency, electricalInterSystemOverSampling, 1 / thermalFrequency);
@@ -443,7 +430,6 @@ public class Eln {
 		delayedTask = new DelayedTaskManager();
 
 		playerManager = new PlayerManager();
-		//tileEntityDestructor = new TileEntityDestructor();
 
 		oreRegenerate = new OreRegenerate();
 		nodeServer = new NodeServer();
@@ -502,7 +488,7 @@ public class Eln {
 		NodeManager.registerUuid(sixNodeBlock.getNodeUuid(), SixNode.class);
 		NodeManager.registerUuid(transparentNodeBlock.getNodeUuid(), TransparentNode.class);
 
-		o = Item.getItemFromBlock(sixNodeBlock);
+		Object o = Item.getItemFromBlock(sixNodeBlock);
 		sixNodeItem = (SixNodeItem) Item.getItemFromBlock(sixNodeBlock);
 		transparentNodeItem = (TransparentNodeItem) Item.getItemFromBlock(transparentNodeBlock);
 
@@ -612,8 +598,6 @@ public class Eln {
 	boolean ComputerProbeEnable;
 	boolean ElnToOtherEnergyConverterEnable;
 
-	// FMLCommonHandler.instance().bus().register(this);
-
 
 	@EventHandler
 	public void modsLoaded(FMLPostInitializationEvent event) {
@@ -625,7 +609,6 @@ public class Eln {
 
 	@EventHandler
 	public void load(FMLInitializationEvent event) {
-
 		//
 		registerReplicator();
 		//
@@ -930,7 +913,7 @@ public class Eln {
 
 	@EventHandler
 	public void onServerStart(FMLServerAboutToStartEvent ev) {
-		modbusServer = new ModbusTcpServer();
+		modbusServer = new ModbusTcpServer(modbusPort);
 		TeleporterElement.teleporterList.clear();
 		//tileEntityDestructor.clear();
 		LightBlockEntity.observers.clear();
